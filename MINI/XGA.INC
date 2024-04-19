@@ -27,7 +27,10 @@ AGX_ID		equ	8fd9h
 XGABLTerRegs		struc
 	PageDirBaseAddr 	dd	?
 	CurrentVirtualAddr	dd	?
-	Reserved_1		dd	?
+	Reserved_1a		db	?
+	AuxStatus		db	?
+	Reserved_1c		db	?
+	Reserved_1d		db	?
 	StateALen		db	?
 	StateBLen		db	?
 	Reserved_2		dw	?
@@ -80,4 +83,14 @@ local	HardwareStillBusy
 HardwareStillBusy:
 	test	SegReg:[OffReg].CoprocessorControl,80h	;;busy bit still set?
 	jnz	HardwareStillBusy			;;yes, go try again
+endm
+
+;
+;On the XGA-2 there is a performance-optimized method of polling this:
+;
+MakeHardwareNotBusyXga2	macro	SegReg, OffReg
+local	HardwareStillBusyXga2
+HardwareStillBusyXga2:
+	test	SegReg:[OffReg].AuxStatus,80h	;;busy bit still set?
+	jnz	HardwareStillBusyXga2			;;yes, go try again
 endm

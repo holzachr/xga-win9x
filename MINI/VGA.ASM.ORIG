@@ -611,19 +611,27 @@ FM640x480x16:
 ;
 public	FM800x600
 FM800x600:
-;	cmp	wChipId,XGA1_ID 	;running on an XGA/1?
-;	je	FMErrorExit		;yep, can't support it
+	cmp	wChipId,XGA1_ID 	;running on an XGA/1?
+	je	FMErrorExit		;yep, can't support it
 	mov	wScreenWidth,800	;setup variables for 800x600
 	mov	wScreenHeight,600	;
 	mov	wScreenWidthBytes,800	;
 	mov	wMaxWidth,800		;
 	mov	bx,103h 		;set to VESA mode 103H
-	cmp	dx,16			;do they want 16 BPP?
-	jne	@F			;nope, everything's setup
+	cmp	wChipId,AGX_ID		;running on an IIT AGX?
+	jne	@F			;nope, pitch is setup OK
 	cmp	dwVideoMemorySize,1024*1024
-	jb	FMErrorExit		;can't support it on 512K configuration
+					;do they have at least 1 meg?
+	jb	FMErrorExit		;no, the AGX needs 1 meg for 800x600x8
+	mov	wScreenWidthBytes,1024	;yes, AGX must have power of 2 pitch
+	mov	wMaxWidth,1024		;
+	cmp	dx,16			;do they want 16 BPP on the AGX?
+	jne	@F			;nope, everything's setup
+	cmp	dwVideoMemorySize,2*1024*1024
+					;do they have 2 megs?
+	jb	FMErrorExit		;nope, they can't do it!
 	mov	bx,114h 		;set to VESA mode 114H
-	mov	wScreenWidthBytes,1600	;set pitch to 1600 bytes
+	mov	wScreenWidthBytes,1600	;set AGX pitch to 1600 bytes
 	mov	wMaxWidth,1600		;
 	mov	dx,8			;(so test down below will pass)
 @@:	cmp	dx,8			;do they want 8 BPP?
@@ -650,6 +658,8 @@ FM1024x768:
 	cmp	dwVideoMemorySize,1024*1024*2
 					;modes above 1024x768x8 need 2 megs
 	jb	FMErrorExit		;
+	cmp	wChipId,AGX_ID		;running on the IIT AGX?
+	jne	FMErrorExit		;nope, XGA's don't support 1024x768x16
 	cmp	dx,16			;do they want 16 BPP?
 	jne	FMErrorExit		;nope, we don't support anything else
 	mov	bx,117h 		;set to VESA mode 117H

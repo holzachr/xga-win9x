@@ -192,7 +192,10 @@ cBegin
 	mov	al,08h			;set monochrome, Motorola ordering
 	out	dx,al			;
 	lfs	di,XGARegs		;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	push	di			;save FS:DI --> XGA registers
 	les	edi,fword ptr OffScreenStartAddr
 	xor	esi,esi 		;make sure top word of ESI is 0
@@ -355,7 +358,10 @@ cBegin
 	lfs	di,lpDevice		;FS:DI --> DIB Engine PDevice structure
 	or	fs:[di].deFlags,BUSY	;
 	lfs	di,XGARegs		;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	mov	fs:[di].FgdMix,3	;set MixMode to REPLACE
 	mov	fs:[di].BgdMix,3	;
 ;

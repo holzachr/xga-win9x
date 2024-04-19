@@ -521,7 +521,10 @@ PLABEL SSBLeave
         ret
 
 PLABEL SSBlSetFunction
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	mov	ax,RopFunction		;restore saved function
 	mov	fs:[di].FgdMix,al	;set it into the hardware
 	mov	fs:[di].BgdMix,al	;
@@ -620,7 +623,10 @@ PLABEL	HBColorPattern
 ;       DS:SI->PBRUSH
 ;
 	lfs	di,XGARegs		;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	les	ecx,fword ptr OffScreenStartAddr
 					;ES:ECX --> flat address of off-screen
 	push	si			;save pointer to PBrush
@@ -700,7 +706,10 @@ HBTileBrushLoop:
 ;double what it was:
 ;
 	shl	bx,1			;double size of source tile
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	jmp	HBTileBrushLoop 	;go do another tile
 ;
 public	HBSetupBrushBLTLoop
@@ -712,7 +721,10 @@ HBSetupBrushBLTLoop:
 ;We now have to stripe our colour pattern contained in the off-screen
 ;memory area onto the destination rectangle using PixBLT's:
 ;
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	mov	cx,RopFunction		;set the MixMode to the XGA
 	mov	fs:[di].FgdMix,cl	;
 	mov	fs:[di].BgdMix,cl	;
@@ -759,7 +771,10 @@ HBBrushBLTLoop:
 	add	DestyOrg,8		;bump to next stripe in destination
 	sub	cx,8			;have we striped enough?
 	jle	HBDoneWithColourBrush	;yes, we're done!
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	jmp	HBBrushBLTLoop		;not yet, go do another stripe
 ;
 public	HBDoneWithColourBrush
@@ -773,7 +788,10 @@ PLABEL  HBSolid
 ;DS:SI-->PBrush
 ;
 	lfs	di,XGARegs		;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	mov	cx,RopFunction		;get Rop to set
 	mov	fs:[di].FgdMix,cl	;set MixMode to the XGA
 	mov	fs:[di].BgdMix,cl	;
@@ -821,7 +839,10 @@ PLABEL	HBMonoPattern
 ;processor to write the 8x8 monochrome brush to the off-screen area
 ;
 	lfs	di,XGARegs		;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 ;
 ;Setup the dimensions of the MapMask PixMap to be 8x8:
 ;

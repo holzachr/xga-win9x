@@ -108,7 +108,10 @@ cBegin
 	cmp	al,1		;is a hardware cursor defined?
 	jne	@F		;nope, don't turn off the hardware cursor
 	lfs	di,XGARegs	;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
+	cmp	wChipId,XGA2_ID	;running on an XGA-2?
+	jne	@F				;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2	fs,di
+@@:	MakeHardwareNotBusy	fs,di
 	mov	dx,CRTCRegisterBase
 	mov	ax,36h		;a zero written to reg 36H will do it
 	out	dx,ax		;
@@ -146,8 +149,8 @@ SCDispatch:
 	cmp	MouseTrailsFlag,0
 				;are mouse trails turned on?
 	jne	SCCallDIBEngine ;yes, go call the DIB engine
-	cmp	wChipId,AGX_ID	;running on an IIT AGX?
-	jne	SCDefineHardwareCursor
+;	cmp	wChipId,AGX_ID	;running on an IIT AGX?
+;	jne	SCDefineHardwareCursor
 				;nope, continue drawing hardware cursor
 	cmp	wBpp,8		;running on an IIT AGX in 8 BPP mode?
 	je	SCDefineHardwareCursor
