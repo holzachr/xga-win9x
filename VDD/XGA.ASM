@@ -132,8 +132,6 @@ BeginProc MiniVDD_Dynamic_Init
 	movzx	edi,di			;make sure top word of EDI is 0
 	cmp	edi,XGA2_ID		;is it an XGA/2?
 	je	@F			;yes, go save XGA/2 ChipID
-	cmp	edi,AGX_ID		;is it an AGX?
-	je	@F			;yes, go save AGX ChipID
 	mov	edi,XGA1_ID		;nope, force it to be an XGA/1
 @@:	mov	ChipID,edi		;DI contains the XGA model (XGA/1 or 2)
 ;
@@ -153,7 +151,7 @@ MVDI_InstallVESAStub:
 ;the virtual machine's code area which will translate this FAR call into
 ;a simple INT 10H, function 4F05H call.
 ;
-;First, get the real value of the XGA/AGX banking register into our
+;First, get the real value of the XGA banking register into our
 ;code stub:
 ;
 	mov	eax,XGABankReg		;
@@ -233,63 +231,9 @@ MVDI_FillInTable:
 	MiniVDDDispatch VESA_SUPPORT,VESASupport
 	MiniVDDDispatch GET_TOTAL_VRAM_SIZE,GetTotalVRAMSize
 	MiniVDDDispatch CHECK_SCREEN_SWITCH_OK,CheckScreenSwitchOK
-	cmp	ChipID,AGX_ID		;running on the IIT AGX?
-	je	MVDI_Setup2160Traps	;yes, don't need DAC virtualization
 	MiniVDDDispatch VIRTUALIZE_DAC_OUT,VirtualizeDACOut
 	MiniVDDDispatch VIRTUALIZE_DAC_IN,VirtualizeDACIn
 	jmp	MVDI_GoodExit		;that's it for the XGA
-;
-public	MVDI_Setup2160Traps
-MVDI_Setup2160Traps:
-	MiniVDDDispatch POST_HIRES_TO_VGA,PostHiResToVGA
-	mov	esi,OFFSET32 MiniVDD_Virtual2160
-	mov	edx,2160h		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,2160h		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216ah		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216ah		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216bh		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216bh		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216ch		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216ch		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216dh		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216dh		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216eh		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216eh		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
-;
-	mov	esi,OFFSET32 MiniVDD_VirtualAGXIndexedPorts
-	mov	edx,216fh		;
-	VMMCall Install_IO_Handler	;
-	jc	MVDI_ErrorExit		;oops, couldn't install procedure
-	mov	edx,216fh		;
-	VMMCall Enable_Global_Trapping	;always leave it trapped
 ;
 MVDI_GoodExit:
 	clc				;return success
@@ -443,49 +387,6 @@ IXCheckMotherboard:
 	call	CheckPOSIDForXGA	;CY returned in XGA was found
 	jc	IXSavePOSData		;we found the XGA on system board!
 ;
-public	IXTryForAGX
-IXTryForAGX:
-;
-;Let's see if we have an IIT AGX.  We know that its CRTC base is at 2160H, so
-;we can check a few things to ID it:
-;
-	mov	dx,2160h		;set to AGX operating mode register
-	mov	al,0ah			;write out a pattern to 2160H
-	out	dx,al			;
-	jmp	@F			;
-@@:	in	al,dx			;read it back
-	and	al,0fh			;get rid of undefined bits
-	cmp	al,0ah			;was it readable?
-	jne	IXErrorExit		;nope, musn't be an AGX
-	mov	al,01h			;set back to VGA mode
-	out	dx,al			;
-;
-	mov	dx,2168h		;set to AGX banking register
-	mov	al,05h			;set to bank 05H
-	out	dx,al			;
-	jmp	@F			;
-@@:	in	al,dx			;read it back
-	cmp	al,05h			;was it readable?
-	jne	IXErrorExit		;nope, musn't be an AGX
-;
-;We're an AGX, setup for it:
-;
-	mov	di,AGX_ID		;
-	mov	XGARegBase,2160h	;
-	mov	XGABankReg,2168h	;
-	mov	XGAPixmapBaseAddr,0fd800000h
-;
-;We need to set the AGX so that its memory mapped registers are at
-;physical address B1F00H:
-;
-	mov	edx,216ah		;EDX --> AGX indexed registers
-	mov	al,6dh			;this is index for Mode Register 3
-	mov	ah,03h			;set to base address B1F00H
-	out	dx,ax			;
-	mov	ebx,0b1f00h		;this is memory mapped register addr
-	mov	XGASlotNbr,0		;AGX is not a MicroChannel card
-	jmp	IXGetMemMappedRegsAddr	;go do common processing
-;
 public	IXSavePOSData
 IXSavePOSData:
 ;
@@ -554,9 +455,9 @@ IXDisableMotherboardXGA:
 ;If the user added an XGA card to a machine which had other XGA cards or had
 ;XGA on the motherboard, we need to make sure that all XGA's in the system
 ;besides the one we found are disabled.  If we found only one XGA on the
-;motherboard or we found an AGX, we need not do this disable search.
+;motherboard, we need not do this disable search.
 ;
-	cmp	XGASlotNbr,0		;was XGA found on motherboard (or AGX)?
+	cmp	XGASlotNbr,0		;was XGA found on motherboard?
 	je	IXGoodExit		;yes, don't need to do the following
 	push	edi			;save the POS ID for the active XGA
 ;
@@ -645,10 +546,6 @@ BeginProc CheckPOSIDForXGA
 ;Exit:
 ;	CY set if XGA was found.
 ;
-	cmp	di,8fd8h		;was the XGA found?
-	je	CPXFoundXGA		;yes
-	cmp	di,8fd9h		;was the XGA found?
-	je	CPXFoundXGA		;yes
 	cmp	di,8fdah		;was the XGA found?
 	je	CPXFoundXGA		;yes
 	cmp	di,8fdbh		;was the XGA found?
@@ -783,7 +680,7 @@ BeginProc MiniVDD_RegisterDisplayDriver, RARE
 ;	If Client_CL was 0:
 ;		Client_EAX contains the XGA Pixmap base address.
 ;		Client_DX contains the CRTC register base (21x0).
-;		Client_DI contains the chipset ID (XGA1_ID, XGA2_ID, or AGX_ID).
+;		Client_DI contains the chipset ID (XGA1_ID or XGA2_ID).
 ;	If Client_CL was 1:
 ;		Client_EAX contains the total memory size contained on the XGA.
 ;		Client_DX contains the LDT selector for the memory mapped regs.
@@ -927,8 +824,6 @@ subttl		Utility Routine To Leave XGA HiRes Mode
 page +
 public	LeaveXGAMode
 BeginProc LeaveXGAMode, DOSVM
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	je	LXMExit 		;yes, no need to do this
 	mov	edx,XGARegBase		;EDX --> Operating Mode register
 ;
 	inc	dl			;EDX --> Aperture Control register
@@ -982,7 +877,7 @@ BeginProc MiniVDD_PreHiResToVGA, DOSVM
 ;Now, call MiniVDD_System_Exit because it contains the code which will
 ;switch us out of HiRes mode into standard VGA mode:
 ;
-	cmp	ChipID,AGX_ID		;running on an AGX?
+	cmp	ChipID,AGX_ID		;running on an AGX?	TODO test on XGA
 	jne	@F			;nope, skip this
 	mov	CRTCModeChangeFlags,0ffh
 @@:	call	LeaveXGAMode		;
@@ -999,7 +894,7 @@ BeginProc MiniVDD_PostHiResToVGA, DOSVM
 ;
 ;This routine is not called on an XGA.	It's only used on the AGX.
 ;
-	mov	CRTCModeChangeFlags,0	;we're done with the CRTC mode change
+	mov	CRTCModeChangeFlags,0	;we're done with the CRTC mode change	TODO test without on XGA
 ;
 MVTHExit:
 	ret
@@ -1108,23 +1003,6 @@ VESAModesTable		label	word
 NbrVESAModes		equ	($ - OFFSET32 VESAModesTable) / 2
 	dw	-1			;terminator
 VESAModesTableLen	equ	$ - OFFSET32 VESAModesTable
-;
-;
-public	VESAModesTable_AGX
-VESAModesTable_AGX	label	word
-	dw	100h			;640x480x8
-	dw	101h			;640x480x8
-	dw	103h			;800x600x8
-	dw	104h			;1024x768x4
-	dw	105h			;1024x768x8
-	dw	106h			;1280x1024x4
-	dw	107h			;1280x960x8
-	dw	111h			;640x480x16 (5:6:5)
-	dw	114h			;800x600x16 (5:6:5)
-	dw	117h			;1024x768x16 (5:6:5)
-NbrVESAModes_AGX	equ	($ - OFFSET32 VESAModesTable_AGX) / 2
-	dw	-1			;terminator
-VESAModesTableLen_AGX	equ	$ - OFFSET32 VESAModesTable_AGX
 ;
 ;
 VESAModeEntry		struc
@@ -1297,108 +1175,7 @@ Mode1280x1024x8 	label	word
 	dw	4f50h, 0055h, 0060h, 0061h, 0062h, 0063h, 0ff64h
 	dw	0032h, 0035h, 0038h, 0039h, 003ah, 0ff3bh, 0ff3ch, 0ff3dh
 ;
-;Following are the tables for the IIT AGX:
-;
-AGXModeLookupTable	label	dword
-Mode100H_AGX  VESAModeEntry <OFFSET32 Mode640x400x8, ModeTableEntryLen, 8, 640, 640, 400>
-Mode101H_AGX  VESAModeEntry <OFFSET32 Mode640x480x8_AGX, ModeTableEntryLen_AGX, 8, 640, 1024, 480>
-Mode102H_AGX  VESAModeEntry <>
-Mode103H_AGX  VESAModeEntry <OFFSET32 Mode800x600x8_AGX, ModeTableEntryLen_AGX, 8, 800, 1024, 600>
-Mode104H_AGX  VESAModeEntry <OFFSET32 Mode1024x768x4_AGX, ModeTableEntryLen_AGX, 4, 1024, 512, 768>
-Mode105H_AGX  VESAModeEntry <OFFSET32 Mode1024x768x8_AGX, ModeTableEntryLen_AGX, 8, 1024, 1024, 768>
-Mode106H_AGX  VESAModeEntry <OFFSET32 Mode1280x1024x4_AGX, ModeTableEntryLen_AGX, 8, 1280, 640, 1024>
-Mode107H_AGX  VESAModeEntry <OFFSET32 Mode1280x960x8_AGX, ModeTableEntryLen_AGX, 8, 1280, 2048, 960>
-Mode108H_AGX  VESAModeEntry <>
-Mode109H_AGX  VESAModeEntry <>
-Mode10AH_AGX  VESAModeEntry <>
-Mode10BH_AGX  VESAModeEntry <>
-Mode10CH_AGX  VESAModeEntry <>
-Mode10DH_AGX  VESAModeEntry <>
-Mode10EH_AGX  VESAModeEntry <>
-Mode10FH_AGX  VESAModeEntry <>
-Mode110H_AGX  VESAModeEntry <>
-Mode111H_AGX  VESAModeEntry <OFFSET32 Mode640x480x16_AGX, ModeTableEntryLen_AGX, 16, 640, 2048, 480>
-Mode112H_AGX  VESAModeEntry <>
-Mode113H_AGX  VESAModeEntry <>
-Mode114H_AGX  VESAModeEntry <OFFSET32 Mode800x600x16_AGX, ModeTableEntryLen_AGX, 16, 800, 1600, 600>
-Mode115H_AGX  VESAModeEntry <>
-Mode116H_AGX  VESAModeEntry <>
-Mode117H_AGX  VESAModeEntry <OFFSET32 Mode1024x768x16_AGX, ModeTableEntryLen_AGX, 16, 1024, 2048, 768>
-;
-;
-Mode640x480x8_AGX	label	word
-	dw	0150h, 0050h, 5F10h, 0011h, 4f12h, 0013h, 4f14h, 0015h
-	dw	5F16h, 0017h, 5518h, 0019h, 611ah, 001bh, 001ch, 001eh
-	dw	0c20h, 0221h,0df22h, 0123h, 0df24h, 0125h, 0c26h, 0227h
-	dw	0ea28h, 0129h,0ec2ah,0ff2ch,0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 8043h, 0044h, 0054h, 0351h, 0070h,0c750h, 0055h
-	dw	307fh, 036Dh,0DF6Eh, 416Fh, 0477h
-ModeTableEntryLen_AGX	equ	($ - OFFSET32 Mode640x480x8_AGX)/2
-;
-Mode640x480x16_AGX	label	word
-	dw	0150h, 0050h, 5f10h, 0011h, 4f12h, 0013h, 4f14h, 0015h
-	dw	5f16h, 0017h, 5518h, 0019h, 611ah, 001bh, 001ch, 001eh
-	dw	0c20h, 0221h,0df22h, 0123h,0df24h, 0125h, 0c26h, 0227h
-	dw	0ea28h, 0129h,0ec2ah,0ff2ch,0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 0043h, 0144h, 0d54h, 0451h, 0070h,0c750h, 0055h
-	dw	307fh, 036Dh, 3F6Eh, 556fh, 2277h
-;
-Mode800x600x8_AGX	label	word
-	dw	0150h, 0050h, 8010h, 0011h, 6312h, 0013h, 6314h, 0015h
-	dw	8016h, 0017h, 6e18h, 0019h, 781ah, 001bh, 001ch, 001eh
-	dw	7320h, 0221h, 5722h, 0223h, 5724h, 0225h, 7326h, 0227h
-	dw	5828h, 0229h, 1c2ah,0ff2ch, 072dh, 0036h, 0040h, 0041h
-	dw	0042h, 8043h, 0044h, 0d54h, 0351h, 0070h, 0750h, 0055h
-	dw	127fh, 036Dh, 9F6Eh, 516fh, 0477h
-;
-Mode800x600x16_AGX	label	word
-	dw	0150h, 0050h, 0fc10h, 0011h, 0c712h, 0013h, 0c714h, 0015h
-	dw	0fc16h, 0017h, 0d118h, 0019h, 0dd1ah, 001bh, 001ch, 001eh
-	dw	8020h, 0221h, 5722h, 0223h, 5724h, 0225h, 8026h, 0227h
-	dw	5e28h, 0229h, 0d2ah, 0ff2ch, 0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 0c843h, 0044h, 0d54h, 0351h, 0070h, 0750h, 0055h
-	dw	127fh, 036Dh, 9F6Eh, 156fh, 0077h
-;
-Mode1024x768x4_AGX	label	word
-	dw	0150h, 0050h,0a410h, 0011h, 7f12h, 0013h, 7f14h, 0015h
-	dw	0a416h, 0017h, 8a18h, 0019h, 931ah, 001bh, 401ch, 041eh
-	dw	2520h, 0321h,0ff22h, 0223h,0ff24h, 0225h, 2526h, 0327h
-	dw	0028h, 0329h, 082ah,0ff2ch,0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 4043h, 0044h, 0d54h, 0251h, 0070h, 0f50h, 0055h
-	dw	327fh, 036Dh, 1F6Eh, 556fh, 3477h
-;
-Mode1024x768x8_AGX	label	word
-	dw	0150h, 0050h,0a410h, 0011h, 7f12h, 0013h, 7f14h, 0015h
-	dw	0a416h, 0017h, 8a18h, 0019h, 931ah, 001bh, 401ch, 041eh
-	dw	2520h, 0321h,0ff22h, 0223h,0ff24h, 0225h, 2526h, 0327h
-	dw	0028h, 0329h, 082ah,0ff2ch,0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 8043h, 0044h, 0d54h, 0351h, 0070h, 1750h, 0055h
-	dw	327fh, 036Dh, 5F6Eh, 656fh, 3477h
-;
-Mode1024x768x16_AGX	 label	 word
-	dw	0150h, 0050h,0a710h, 0011h, 7f12h, 0013h, 7f14h, 0015h
-	dw	0a716h, 0017h, 8218h, 0019h, 931ah, 001bh, 401ch, 041eh
-	dw	2520h, 0321h,0ff22h, 0223h,0ff24h, 0225h, 2526h, 0327h
-	dw	0228h, 0329h, 082ah, 0ff2ch, 072dh, 0036h, 0040h, 0041h
-	dw	0042h, 0043h, 0144h, 0d54h, 0451h, 0070h, 0b50h, 0055h
-	dw	007fh, 036Dh, 5c6Eh, 746fh, 2677h
-;
-Mode1280x1024x4_AGX	label	word
-	dw	0150h, 0050h,0cc10h, 0011h, 9f12h, 0013h, 9f14h, 0015h
-	dw	0cc16h, 0017h,0b018h, 0019h,0be1ah, 001bh, 401ch, 001eh
-	dw	0e020h, 0321h,0bf22h, 0323h,0bf24h, 0325h, 0e026h, 0327h
-	dw	0c128h, 0329h, 052ah,0ff2ch, 072dh, 0036h, 0040h, 0041h
-	dw	0042h, 0043h, 0144h, 0d54h, 0351h, 0070h, 0050h, 0055h
-	dw	367fh, 036Dh, 016Eh, 776fh, 1477h
-;
-Mode1280x960x8_AGX	label	word
-	dw	0150h, 0050h,0cc10h, 0011h, 9f12h, 0013h, 9f14h, 0015h
-	dw	0cc16h, 0017h,0b018h, 0019h,0be1ah, 001bh, 401ch, 001eh
-	dw	0e020h, 0321h,0bf22h, 0323h,0bf24h, 0325h, 0e026h, 0327h
-	dw	0c128h, 0329h, 052ah,0ff2ch, 072dh, 0036h, 0040h, 0041h
-	dw	0042h, 0043h, 0144h, 0d54h, 0351h, 0070h, 0050h, 0055h
-	dw	367fh, 036Dh, 016Eh, 776fh, 2477h
-;
+
 Palette_16BPP		label	byte
 	db	0,0,0 SHL 2
 	db	0,0,2 SHL 2
@@ -1680,11 +1457,7 @@ VF0GotVersion:
 @@:	mov	[eax].VideoModePtr,esi	;stuff the address of the Modes list
 	mov	esi,OFFSET32 VESAModesTable
 	mov	ecx,VESAModesTableLen	;
-	cmp	ChipID,AGX_ID		;running on the AGX?
-	jne	@F			;nope, we're setup for the XGA
-	mov	esi,OFFSET32 VESAModesTable_AGX
-	mov	ecx,VESAModesTableLen_AGX
-@@:	rep	movsb			;
+	rep	movsb			;
 	pop	ecx			;restore structure type to CL
 ;
 ;Next, the VESA total memory size in number of 64K blocks available:
@@ -1760,11 +1533,7 @@ BeginProc VESAFunc1, DOSVM
 	and	ax,NOT 0c080h		;get rid of "don't erase screen" bits
 	mov	ecx,NbrVESAModes	;this is nbr that we potentially support
 	mov	edi,OFFSET32 VESAModesTable
-	cmp	ChipID,AGX_ID		;running on the IIT AGX?
-	jne	@F			;nope, we're setup for the XGA
-	mov	ecx,NbrVESAModes_AGX	;this is nbr that we potentially support
-	mov	edi,OFFSET32 VESAModesTable_AGX
-@@:	repne	scasw			;
+	repne	scasw			;
 	movzx	ecx,ax			;copy mode number into ECX
 	pop	eax			;restore EAX --> Mode Information Block
 	jne	VF1Failure		;mode wasn't in table, fail the call
@@ -1799,9 +1568,7 @@ VF1CheckMemory:
 	jb	VF1ModeNotSupported	;nope, we can't support this mode
 	cmp	cl,07h			;running 1280x1024x8?
 	je	VF1CheckFor2Megs	;yes, go check for 2 megs
-	cmp	cl,14h			;running 800x600x16 on the AGX?
-	je	VF1CheckFor2Megs	;yes, go check for 2 megs
-	cmp	cl,17h			;running 1024x768x16 on the AGX?
+	cmp	cl,17h			;running 1024x768x16 on the XGA-2?
 	jne	VF1FillInWinAttributes	;nope, we can support this mode
 ;
 public	VF1CheckFor2Megs
@@ -1809,13 +1576,6 @@ VF1CheckFor2Megs:
 	cmp	TotalMemorySize,2*1024*1024
 					;do we have 2 megs?
 	jb	VF1ModeNotSupported	;nope, can't support this mode
-;
-public	VF1CheckAGXOnlyModes
-VF1CheckAGXOnlyModes:
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	je	VF1FillInWinAttributes	;
-	cmp	cl,17h			;running above mode 111H?
-	ja	VF1ModeNotSupported	;yes, can't run these on the XGA!
 ;
 public	VF1FillInWinAttributes
 VF1FillInWinAttributes:
@@ -1842,10 +1602,7 @@ VF1FillInScreenAttributes:
 	shl	esi,4			;multiply by 16 bytes per entry
 .errnz	SIZE VESAModeEntry - 16
 	mov	edi,OFFSET32 VESAModeLookupTable
-	cmp	ChipID,AGX_ID		;running on the IIT AGX?
-	jne	@F			;nope, we have the correct table
-	mov	edi,OFFSET32 AGXModeLookupTable
-@@:	add	edi,esi 		;EDI --> entry for our mode
+	add	edi,esi 		;EDI --> entry for our mode
 	mov	dx,[edi].ScreenWidthInPixels
 	mov	[eax].VXResolution,dx	;
 	mov	dx,[edi].ScreenPitch	;
@@ -1929,11 +1686,7 @@ BeginProc VESAFunc2, DOSVM
 	jbe	VF2StandardVGAMode	;yes, just go do an INT 10H, function 0
 	mov	ecx,NbrVESAModes	;this is nbr that we potentially support
 	mov	edi,OFFSET32 VESAModesTable
-	cmp	ChipID,AGX_ID		;running on the IIT AGX?
-	jne	@F			;nope, we're setup for the XGA
-	mov	ecx,NbrVESAModes_AGX	;this is nbr that we potentially support
-	mov	edi,OFFSET32 VESAModesTable_AGX
-@@:	repne	scasw			;
+	repne	scasw			;
 	jne	VF2Failure		;mode wasn't in table, fail the call
 ;
 ;If we're running on an XGA/1, we can't do 800x600:
@@ -1971,18 +1724,6 @@ VF2GetModeTable:
 	sub	eax,100h		;make mode number offset from 100H
 	shl	eax,4			;multiply by 16 bytes per entry
 .errnz	SIZE VESAModeEntry - 16
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	jne	@F			;nope, use XGA lookup tables
-	mov	cl,[ebp].Client_BL	;get the low byte of the mode number
-	cmp	cl,04h			;running at 1024x768x4?
-	je	@F			;yes, use XGA lookup table for now
-	cmp	cl,05h			;running at 1024x768x8?
-	je	@F			;yes, use XGA lookup table for now
-	mov	esi,[eax+OFFSET32 AGXModeLookupTable].ModeTableAddr
-					;ESI --> mode table to set
-	movzx	ecx,[eax+OFFSET32 AGXModeLookupTable].ModeTableLen
-					;ECX contains nbr of words in mode table
-	jmp	VF2SetupMode		;
 @@:	mov	esi,[eax+OFFSET32 VESAModeLookupTable].ModeTableAddr
 					;ESI --> mode table to set
 	movzx	ecx,[eax+OFFSET32 VESAModeLookupTable].ModeTableLen
@@ -2014,18 +1755,7 @@ VF2AdjustForRefreshRate:
 ;a compatible interlaced mode on the AGX:
 ;
 	movzx	eax,[ebp].Client_BL	;get low byte of mode number
-	cmp	ChipID,AGX_ID		;running on the IIT AGX at 1024x768?
-	jne	@F			;nope, must be on the XGA/2
-	cmp	RefreshRate,72		;can he do 72 Hz?
-	jb	VF2SetupMode		;nope, just use the XGA/1's table
-	shl	eax,4			;multiply by 16 bytes per entry
-.errnz	SIZE VESAModeEntry - 16
-	mov	esi,[eax+OFFSET32 AGXModeLookupTable].ModeTableAddr
-					;ESI --> mode table to set
-	movzx	ecx,[eax+OFFSET32 AGXModeLookupTable].ModeTableLen
-					;ECX contains nbr of words in mode table
-	jmp	VF2SetupMode		;
-@@:	cmp	al,03h			;running 800x600?
+	cmp	al,03h			;running 800x600?
 	jne	@F			;nope, try 1024x768
 	cmp	RefreshRate,72		;can he do 72 Hz?
 	jb	VF2SetupMode		;nope, we're already set for 60 Hz
@@ -2080,8 +1810,6 @@ VF2SetupMode:
 ;
 public	VF2SetXGAExtendedMode
 VF2SetXGAExtendedMode:
-	cmp	ChipID,AGX_ID		;don't do this for the AGX!
-	je	@F			;we're on an AGX
 	mov	edx,3c3h		;we need to disable the VGA explicitely
 	xor	al,al			;
 	out	dx,al			;
@@ -2096,10 +1824,7 @@ VF2SetXGAExtendedMode:
 ;
 	sub	dl,05h			;DX --> Operating Mode Register (21x0)
 	mov	al,04h			;set to Intel memory layout, HiRes mode
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	jne	@F			;nope, we're setup for the XGA
-	mov	al,05h			;this is value for the AGX
-@@:	out	dx,al			;
+	out	dx,al			;
 ;
 	inc	dl			;DX --> Aperture Control Register (21x1)
 	mov	al,01h			;we want 64K aperture at A000:0H
@@ -2136,26 +1861,6 @@ VF2Setup16BPPDAC:
 ;
 	cmp	[ebp].Client_BL,11h	;running mode 111H (16 BPP)?
 	jb	VF2SaveCurrentMode	;nope, don't need to do this!
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	jne	VF2SetupXGA16BPPDAC	;nope, go do XGA procedure
-;
-public	VF2SetupAGX16BPPDAC
-VF2SetupAGX16BPPDAC:
-	mov	edx,3c6h
-	mov	al,0ffh
-	out	dx,al
-	mov	edx,216ah
-	mov	al,51h			;turn on RS2
-	out	dx,al
-	mov	edx,3c6h
-	in	al,dx
-	in	al,dx
-	in	al,dx
-	in	al,dx
-	mov	al,0e0h 		;set DAC to 5-6-5 16 BPP colour mode
-	out	dx,al			;
-	jmp	VF2SaveCurrentMode	;
-;
 public	VF2SetupXGA16BPPDAC
 VF2SetupXGA16BPPDAC:
 	mov	esi,OFFSET32 Palette_16BPP
@@ -2220,8 +1925,6 @@ VF2StartDACTranslate:
 ;
 	cmp	ebx,WindowsVMHandle	;doing mode change for the Windows VM?
 	je	VF2EraseScreen		;yes, don't bother trapping DAC
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	je	VF2EraseScreen		;yes, AGX uses standard VGA DAC regs
 	mov	edx,3c7h		;enable trapping for our VM
 	VMMCall Enable_Local_Trapping	;
 ;
@@ -2409,14 +2112,7 @@ BeginProc VESAFunc6, DOSVM
 	sub	edi,100h		;offset the mode number from zero
 	jl	VF6Failure		;bad mode!  don't support it
 	shl	edi,4			;multiply by 16 bytes per entry
-	cmp	ChipID,AGX_ID		;running on the IIT AGX?
-	jne	@F			;nope, use the XGA tables
-	movzx	esi,[edi+OFFSET32 AGXModeLookupTable].ScreenWidthInPixels
-					;ESI has width of screen in pixels
-	movzx	edi,[edi+OFFSET32 AGXModeLookupTable].ScreenPitch
-					;EDI has width of screen in bytes
-	jmp	VF6CheckValidity	;we've got the data
-@@:	movzx	esi,[edi+OFFSET32 VESAModeLookupTable].ScreenWidthInPixels
+	movzx	esi,[edi+OFFSET32 VESAModeLookupTable].ScreenWidthInPixels
 					;ESI has width of screen in pixels
 	movzx	edi,[edi+OFFSET32 VESAModeLookupTable].ScreenPitch
 					;EDI has width of screen in bytes
@@ -2604,8 +2300,6 @@ VF9GetPalette:
 ;
 ;Get ready to read the palette entries:
 ;
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	je	VF9ReadAGXPalette	;yes, go do it for the AGX
 	mov	edx,XGACRTCReg		;EDX --> XGA's extended CRTC regs (21xA)
 	mov	eax,0066h		;initialize palette sequence reg
 	out	dx,ax			;
@@ -2635,31 +2329,6 @@ VF9ReadDACLoop:
 	jnz	VF9ReadDACLoop		;yes, go read the next entry!
 	jmp	VF9GoodExit		;hey! we're done!
 ;
-public	VF9ReadAGXPalette
-VF9ReadAGXPalette:
-	mov	edx,3c7h		;EDX --> DAC read index register
-;
-public	VF9ReadDACLoop_AGX
-VF9ReadDACLoop_AGX:
-	mov	al,cl			;get palette entry to read
-	out	dx,al			;set the index
-;
-	mov	dl,0c9h 		;this is DAC Data register
-	mov	[edi],cl		;set the index as the alignment byte
-	in	al,dx			;get RED value
-	mov	[edi+1],al		;save it in return area
-	in	al,dx			;get GREEN value
-	mov	[edi+2],al		;save it in return area
-	in	al,dx			;get BLUE value
-	mov	[edi+3],al		;save it in return area
-;
-	mov	dl,0c7h 		;EDX --> DAC read index register
-	add	edi,4			;bump to next entry in return area
-	inc	ecx			;bump to next DAC entry to read
-	dec	esi			;any more to do?
-	jnz	VF9ReadDACLoop_AGX	;yes, go read the next entry!
-	jmp	VF9GoodExit		;hey! we're done!
-;
 public	VF9SetPalette
 VF9SetPalette:
 	mov	ah,Client_ES		;get client register equates in
@@ -2673,8 +2342,6 @@ VF9SetPalette:
 ;
 ;Get ready to set the palette entries:
 ;
-	cmp	ChipID,AGX_ID		;running on an IIT AGX?
-	je	VF9SetAGXPalette	;yes, use alternate method
 	mov	edx,XGACRTCReg		;EDX --> XGA's extended CRTC regs (21xA)
 	mov	eax,0066h		;initialize palette sequence reg
 	out	dx,ax			;
@@ -2698,27 +2365,6 @@ VF9WriteDACLoop:
 	dec	edi			;any more to do?
 	jnz	VF9WriteDACLoop 	;yes, go write the next entry!
 	jmp	VF9GoodExit		;and we're done
-;
-public	VF9SetAGXPalette
-VF9SetAGXPalette:
-	mov	edx,3c8h		;EDX --> DAC Write Index register
-;
-public	VF9WriteDACLoop_AGX
-VF9WriteDACLoop_AGX:
-	mov	al,cl			;get palette entry to write
-	out	dx,al			;set the index
-	inc	dl			;EDX --> DAC Data Register
-	mov	al,[esi+1]		;get RED value
-	out	dx,al			;
-	mov	al,[esi+2]		;get GREEN value
-	out	dx,al			;
-	mov	al,[esi+3]		;get BLUE value
-	out	dx,al			;
-	dec	dl			;EDX --> DAC Write Index register
-	add	esi,4			;bump to next DAC entry
-	inc	ecx			;bump to next DAC entry to write
-	dec	edi			;any more to do?
-	jnz	VF9WriteDACLoop_AGX	;yes, go write the next entry!
 ;
 public	VF9GoodExit
 VF9GoodExit:
@@ -3016,119 +2662,6 @@ MVDIExit:
 	pop	esi			;
 	ret				;
 EndProc MiniVDD_VirtualizeDACIn
-;
-;
-subttl		Virtualize Port 2160H on the IIT AGX
-page +
-public	MiniVDD_Virtual2160
-BeginProc MiniVDD_Virtual2160, DOSVM
-;
-;Entry:
-;	AL contains the value for port 2160H
-;	EBX contains the VM handle trying to access port 2160H.
-;	ECX contains the type of I/O being done (always Byte_IO).
-;	EDX contains the port (2160H).
-;Exit:
-;
-;The AGX needs this register virtualized because its INT 10H ROM BIOS
-;turns off access to the memory mapped BLTer registers whenever going to
-;a standard VGA mode.  This is OK if we're full-screen, but if we're
-;windowed, the co-processor will die and we'll freeze.  Thus, we always
-;force accessibility to the memory mapped registers if Windows owns the
-;CRTC.
-;
-;If the CRTCModeChangeFlags are set to FFH, it means that we're to let the
-;actual write to 2160H take place.  This happens when either the display
-;driver is disabled (ie: not in HiRes mode), or when the Main VDD is doing
-;a mode change to full-screen mode.
-;
-	cmp	CRTCModeChangeFlags,0	;should we virtualize this?
-	jne	MV2DoPhysicalIO 	;nope, let it happen
-	test	cl,04h			;doing an OUT to 2160H?
-	jz	MV2DoPhysicalIO 	;nope, go do physical IO
-	VxDCall VDD_Get_VM_Info 	;get CRTC owner VM handle in EDI
-	cmp	ebx,edi 		;does VM own the CRTC?
-	je	MV2DoPhysicalIO 	;yes, just do physical IO
-	cmp	edi,WindowsVMHandle	;are we running a Windowed VM?
-	jne	MV2DoPhysicalIO 	;
-	or	al,05h			;yes, make sure XGA memory mapped
-					;regs are accessible
-;
-public	MV2DoPhysicalIO
-MV2DoPhysicalIO:
-	VxDJmp	VDD_Do_Physical_IO	;go do the I/O
-EndProc MiniVDD_Virtual2160
-;
-;
-subttl		Virtualize AGX Indexed Ports
-page +
-public	MiniVDD_VirtualAGXIndexedPorts
-BeginProc MiniVDD_VirtualAGXIndexedPorts, DOSVM
-;
-;Entry:
-;	AL contains the value for the AGX indexed ports.
-;	EBX contains the VM handle trying to access AGX indexed ports.
-;	ECX contains the type of I/O being done.
-;	EDX contains the port number.
-;Exit:
-;
-;The AGX needs this register virtualized because its INT 10H ROM BIOS messes
-;with these ports.  We need to stop all I/O if in a windowed VM.
-;
-;If the CRTCModeChangeFlags are set to FFH, it means that we're to let the
-;actual write to the port take place.  This happens when either the display
-;driver is disabled (ie: not in HiRes mode), or when the Main VDD is doing
-;a mode change to full-screen mode.
-;
-	test	cl,OUTPUT		;doing an OUT to AGX port?
-	jz	MVAHandleIN		;nope, we're doing an IN
-	cmp	dl,6ah			;writing the index?
-	jne	MVAHandleOUT		;nope, continue
-	mov	edi,ebx 		;make EDI --> OurCBData area
-	add	edi,OurCBDataPointer	;
-	mov	[edi].AGXIndex,al	;save the index that we're setting to
-	jmp	MVAHandleOUT		;and continue
-;
-public	MVAHandleIN
-MVAHandleIN:
-	mov	edi,ebx 		;make EDI --> OurCBData area
-	add	edi,OurCBDataPointer	;
-	cmp	[edi].AGXIndex,6fh	;doing an IN from index 6FH?
-	jne	MVADoPhysicalIO 	;nope, go do physical IN
-	VxDCall VDD_Get_VM_Info 	;get CRTC owner VM handle in EDI
-	cmp	ebx,edi 		;does VM own the CRTC?
-	je	MVADoPhysicalIO 	;yes, go do physical IN
-;
-;Register 6FH, bit 2 being set causes the AGX BIOS to add 2 to the cursor
-;position that's set in text modes.  Since we set bit 2 when running a
-;16 BPP mode, we get a erroneous cursor position when running a windowed
-;text mode DOS box.  We therefore don't allow bit 2 to be returned to the
-;caller when we're not the CRTC owner.
-;
-	mov	dl,6ah			;EDX --> AGX index register
-	mov	al,6fh			;set to index 6FH
-	out	dx,al			;
-	inc	dl			;EDX --> AGX data register
-	in	al,dx			;get contents of AGX indexed reg 6FH
-	and	al,NOT 04h		;get rid of "X Refresh Split" bit
-	jmp	MVADontDoPhysicalIO	;and return this value
-;
-public	MVAHandleOUT
-MVAHandleOUT:
-	cmp	CRTCModeChangeFlags,0	;should we virtualize this?
-	jne	MVADoPhysicalIO 	;nope, let it happen
-	VxDCall VDD_Get_VM_Info 	;get CRTC owner VM handle in EDI
-	cmp	ebx,edi 		;does the VM own the CRTC?
-	jne	MVADontDoPhysicalIO	;nope, don't allow the IO
-;
-public	MVADoPhysicalIO
-MVADoPhysicalIO:
-	VxDJmp	VDD_Do_Physical_IO	;go do the I/O
-;
-public	MVADontDoPhysicalIO
-MVADontDoPhysicalIO:
-	ret				;
-EndProc MiniVDD_VirtualAGXIndexedPorts
 ;
 ;
 VxD_LOCKED_CODE_ENDS

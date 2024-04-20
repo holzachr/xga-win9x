@@ -25,6 +25,6 @@ set DDKROOT=c:\ddk
 
 @echo on
 
-nmake clean
+REM nmake clean
 nmake
 pause

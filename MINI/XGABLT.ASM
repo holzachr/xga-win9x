@@ -79,19 +79,18 @@ sBegin  Data
         globalW LRCached,0
 PatCacheBufr	db	1024 dup (0)
 
-	externB WindowsEnabledFlag		;in VGA.ASM
-	externB DIBAccessCallFlag		;in ACCESS.ASM
+	externB WindowsEnabledFlag	;in VGA.ASM
+	externB DIBAccessCallFlag	;in ACCESS.ASM
 	externD XGARegs 			;in VGA.ASM
-	externD OffScreenStartAddr		;in VGA.ASM
-	externD ColorFormatMask 		;in VGA.ASM
+	externD OffScreenStartAddr	;in VGA.ASM
+	externD ColorFormatMask 	;in VGA.ASM
 ;
 	externW wChipId 			;in VGA.ASM
 	externW wBpp				;in INIT.ASM
-	externW wScreenWidth			;in VGA.ASM
-	externW wScreenWidthBytes		;in VGA.ASM
-	externB CursorDefinedFlag		;in CURSOR.ASM
-	externD lpDriverPDevice 		;in ENABLE.ASM
-	externB AGXChipID			;in VGA.ASM
+	externW wScreenWidth		;in VGA.ASM
+	externW wScreenWidthBytes	;in VGA.ASM
+	externB CursorDefinedFlag	;in CURSOR.ASM
+	externD lpDriverPDevice 	;in ENABLE.ASM
 sEnd	Data
 
 ;----------------------------------------------------------------------------
@@ -134,16 +133,13 @@ cBegin
 	assumes gs,Data
 	cmp	WindowsEnabledFlag,0	;are we in Windows HiRes mode?
 	jne	BSXCallDIBEngine	;nope, let DIB engine worry about it
-	cmp	wBpp,8			;running 8 BPP?
-	je	@F			;yes, we support BLTer for 8 BPP
-	cmp	wChipId,AGX_ID		;running on the IIT AGX?
-	jne	BSXCallDIBEngine	;we only support 8 BPP on XGA
-	cmp	wBpp,16 		;running 16 BPP on the AGX?
+	cmp	wBpp,8				;running 8 BPP?
+	je	@F					;yes, we support BLTer for 8 BPP
+	cmp	wChipId,XGA2_ID		;running on the XGA/2?
+	jne	BSXCallDIBEngine	;we only support 8 BPP on XGA/1
+	cmp	wBpp,16 			;running 16 BPP on the XGA/2?
 	jne	BSXCallDIBEngine	;nope, let the DIB engine do it!
-	cmp	wScreenWidth,800	;running 800x600x16 on the AGX?
-	je	BSXCallDIBEngine	;yes, the BLTer isn't supported!
-	cmp	AGXChipID,15h		;running on an AGX 15 or greater?
-	jb	BSXCallDIBEngine	;nope, on the 14, we can't BLT
+							;let's ignore 4 BPP, no one is using that.
 @@:	mov	al,bptr Rop+2		;Get the raster op code.
 
 	mov	bx,03h			;assume it's SrcReplace

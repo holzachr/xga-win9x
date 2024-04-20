@@ -108,10 +108,11 @@ cBegin
 	cmp	al,1		;is a hardware cursor defined?
 	jne	@F		;nope, don't turn off the hardware cursor
 	lfs	di,XGARegs	;FS:DI --> XGA Coprocessor registers
-	cmp	wChipId,XGA2_ID	;running on an XGA-2?
-	jne	@F				;nope, don't use optimized polling
-	MakeHardwareNotBusyXga2	fs,di
-@@:	MakeHardwareNotBusy	fs,di
+	cmp     wChipId,XGA2_ID ;running on an XGA-2?
+	jne     @F                              ;nope, don't use optimized polling
+	MakeHardwareNotBusyXga2 fs,di
+@@:	MakeHardwareNotBusy     fs,di
+
 	mov	dx,CRTCRegisterBase
 	mov	ax,36h		;a zero written to reg 36H will do it
 	out	dx,ax		;
@@ -149,10 +150,9 @@ SCDispatch:
 	cmp	MouseTrailsFlag,0
 				;are mouse trails turned on?
 	jne	SCCallDIBEngine ;yes, go call the DIB engine
-;	cmp	wChipId,AGX_ID	;running on an IIT AGX?
-;	jne	SCDefineHardwareCursor
-				;nope, continue drawing hardware cursor
-	cmp	wBpp,8		;running on an IIT AGX in 8 BPP mode?
+	cmp	wBpp,8		;running on an XGA/2 in 8 BPP mode?
+	je	SCDefineHardwareCursor
+	cmp	wBpp,16		;running on an XGA/2 in 16 BPP mode?
 	je	SCDefineHardwareCursor
 				;yes, we can use the hardware cursor
 ;
@@ -231,12 +231,6 @@ SCDefineHardwareCursor:
 	mov	ax,[si].csHeight
 	mul	[si].csWidthBytes
 	mov	CursorBitmapSize,ax
-;
-;Now, see if we're on an IIT AGX. It defines the cursor differently than
-;the XGA:
-;
-	cmp	wChipId,AGX_ID	;on an IIT AGX?
-	je	SCDefineAGXCursor
 ;
 ;Next, clear the 64x64 sprite buffer to transparent:
 ;
@@ -374,58 +368,6 @@ SCLoadSpriteByteLoop:
 	add	dl,2		;DX --> CRTC data register (a DWORD register)
 	jmp	SCLoadSpriteLineLoop
 ;
-public	SCDefineAGXCursor
-SCDefineAGXCursor:
-	mov	cl,byte ptr [si].csHeight
-				;CL contains the line loop counter
-	mov	ch,byte ptr [si].csWidthBytes
-				;CH contains the source byte loop counter
-	mov	esi,DataOFFSET CursorShapeBitmapSave
-				;DS:ESI --> the actual cursor bitmap to write
-	movzx	ebx,CursorBitmapSize
-				;we use this as our AND to XOR increment
-;
-;Next, clear the 64x64 sprite buffer to transparent:
-;
-	les	edi,fword ptr CursorStartAddr
-	assumes es,nothing
-	push	cx
-	push	edi
-	mov	cx, 200h
-;
-SCFillTransparentLoop_AGX:
-	mov	dword ptr es:[edi],0aaaaaaaah
-	add	edi,4
-	loop	SCFillTransparentLoop_AGX
-	pop	edi
-	pop	cx
-	add	di, 32*32+16	;put the cursor image in lower_right corner
-	add	di, 2		;of 2K reserved area
-;
-public	SCLoadSpriteLineLoop_AGX
-SCLoadSpriteLineLoop_AGX:
-	push	cx		;save line loop counter and byte loop counter
-;
-SCLoadSpriteByteLoop_AGX:
-	mov	dh,[si] 	;BH contains next byte of AND bitmap
-	mov	dl,[esi+ebx]	;BL contains next byte of XOR bitmap
-	inc	si		;bump to next byte in source bitmap
-REPT	8
-	rol	dl,1		;get bit 0 of XOR bitmap into CY
-	rcr	ax,1		;and store it into pixel 0 of packed format
-	rol	dh,1		;get bit 0 of AND bitmap into CY
-	rcr	ax,1		;and store it into pixel 0 of packed format
-ENDM
-	mov	es:[edi], al	;write the finished packed pixel word
-	mov	es:[edi+1], ah	;write the finished packed pixel word
-	add	edi, 4
-	dec	ch		;at the end of our line?
-	jnz	SCLoadSpriteByteLoop_AGX
-	add	edi, 16		;next line
-	pop	cx		;restore line loop counter to CL
-	dec	cl		;are we done loading sprite?
-	jnz	SCLoadSpriteLineLoop_AGX
-;
 public	SCDoneLoadingCursor
 SCDoneLoadingCursor:
 	mov	CursorDefinedFlag,1
@@ -522,45 +464,6 @@ MCMoveHardwareCursor:
 	cmp	WindowsEnabledFlag,0
 				;is Windows active on the screen?
 	jne	MCExit		;no! leave without moving the cursor
-	cmp	wChipId,AGX_ID	;running on an IIT AGX?
-	jne	MCMoveXGACursor ;nope, go do it for the XGA
-;
-public	MCMoveAGXCursor
-MCMoveAGXCursor:
-	push	fs		;better save this
-	lfs	di,XGARegs	;FS:DI --> XGA Coprocessor registers
-	MakeHardwareNotBusy	fs,di
-	pop	fs		;restore saved FS
-	mov	dx,CRTCRegisterBase
-				;DX --> XGA Extended CRTC index register
-	mov	ax,2032h	;Horizontal preset = 32 because cursor
-				;is in lower_right corner of 2K area
-	sub	bx,CursorShapeSave.csHotX
-	jge	@F		;our starting X-coordinate is positive!
-	sub	ah, bl		;
-	xor	bx, bx		;if cursor is wide enough, we'll go to zero
-@@:	out	dx,ax		;set the Sprite Horizontal Preset register
-	mov	al,30h		;this is Sprite Horizontal Start Reg Low
-	mov	ah,bl		;
-	out	dx,ax		;
-	inc	al		;this is Sprite Horizontal Start Reg High
-	mov	ah,bh		;
-	out	dx,ax		;
-;
-	mov	ax, 2035h  	;Vertical preset = 32
-	sub	cx,CursorShapeSave.csHotY
-	jge	@F		;our starting X-coordinate is positive!
-	sub	ah, cl
-	xor	cx, cx		;if cursor is high enough, we'll go to zero
-@@:	out	dx,ax		;set the Sprite Vertical Preset register
-	mov	al,33h		;this is Sprite Vertical Start Reg Low
-	mov	ah,cl		;
-	out	dx,ax		;
-	inc	al		;this is Sprite Vertical Start Reg High
-	mov	ah,ch		;
-	out	dx,ax		;
-	jmp	MCExit		;we're done on the AGX
-;
 public	MCMoveXGACursor
 MCMoveXGACursor:
 	mov	dx,CRTCRegisterBase

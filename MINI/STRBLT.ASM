@@ -40,7 +40,6 @@ sBegin	Data
 	externW MemAccessReg			;in VGA.ASM
 	externB MemAccessColorValue		;in VGA.ASM
 	externB WindowsEnabledFlag		;in VGA.ASM
-	externB AGXChipID			;in VGA.ASM
 sEnd	Data
 
 ;----------------------------------------------------------------------------
@@ -109,17 +108,12 @@ cBegin <nogen>
         jnz     ETO_CallExtTextOut      ;yes, let the DIB Engine handle it.
 	cmp	WindowsEnabledFlag,0	;is Windows currently screen owner?
 	jne	ETO_CallExtTextOut	;nope. Let the DIB Engine fail.
-	cmp	wBpp,8			;bpp = 8?
+	cmp	wBpp,8				;bpp = 8?
 	je	ETO_SetupForDTB 	;yes, we can handle it in the BLTer
-	cmp	wChipId,AGX_ID		;running on the IIT AGX?
+	cmp	wChipId,XGA2_ID		;running on the XGA/2?
 	jne	ETO_CallExtTextOut	;nope, let the DIB Engine handle it.
-	cmp	wBpp,16 		;running on the AGX at 16 BPP?
+	cmp	wBpp,16 		;running on the XGA/2 at 16 BPP?
 	jne	ETO_CallExtTextOut	;nope, let the DIB Engine handle it.
-	cmp	AGXChipID,15h		;running on the AGX 15 or above?
-	jb	ETO_CallExtTextOut	;nope, on the AGX 14, no hardware BLT
-					;at 16 BPP
-	cmp	wScreenWidth,800	;running 800x600x16 on the AGX?
-	je	ETO_CallExtTextOut	;nope, BLTer not supported at 800x600x16
 ;
 PLABEL ETO_SetupForDTB
 	pop	ebx			;Get caller's return address
@@ -200,36 +194,7 @@ cBegin
 	les	edi,fword ptr OffScreenStartAddr
 	xor	esi,esi 		;make sure top word of ESI is 0
 	lds	si,lpMonoBuffer 	;DS:ESI --> buffer containing string
-	movzx	eax,WidthBytes		;get total size of bitmap to copy
-	cmp	wChipId,AGX_ID		;running on an IIT AGX?
-	jne	DTBCopyXGAMonoImage	;nope, go do it the XGA way!
-;
-public	DTBCopyAGXMonoImage
-DTBCopyAGXMonoImage:
-;
-;The AGX controller only accepts power of 2 bitmap width, so we need to
-;round the bitmap width to the nearest power of 2.
-;
-	dec	eax
-	xor	ecx, ecx
-	bsr	ecx, eax
-	inc	cx
-	inc	eax
-	mov	ebx, 1
-	shl	bx, cl
-	push	bx			;save BX = power of 2 width of bitmap
-	sub	ebx, eax
-	movzx	edx, Height
-;
-DTBLoadMonoLoop:
-	movzx	ecx, WidthBytes
-	shr	ecx, 2
-	rep	movs	dword ptr es:[edi], dword ptr [esi]
-	add	edi, ebx
-	dec	dx
-	jnz	DTBLoadMonoLoop
-	pop	WidthBytes		;make "power of 2 width" our WidthBytes
-	jmp	DTBMonoImageCommon
+	movzx	eax,WidthBytes	;get total size of bitmap to copy
 ;
 public	DTBCopyXGAMonoImage
 DTBCopyXGAMonoImage:

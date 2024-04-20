@@ -66,10 +66,8 @@ PPROC	SetRAMDAC near
 	mov	ds,ax			;
 	assumes ds,Data
 	mov	dx,CRTCRegisterBase	;DX --> XGA CRTC index register
-	cmp	wChipID,AGX_ID		;running on an IIT AGX?
 	pop	ds			;(restore saved DS)
 	assumes ds,nothing
-	je	SetAGXPalette		;on an AGX, use alternate method
 ;
 ;First initialize the XGA's Palette Sequencer Register (index 66H) to
 ;RGB ordering and starting with the RED index
@@ -105,44 +103,6 @@ SRDLoop:
 	dec	cx			;perform a loop maneuver
 	jnz	SRDLoop 		;
 	jmp	SRDExit 		;
-;
-public	SetAGXPalette
-SetAGXPalette:
-;
-;The AGX uses the standard VGA DAC.
-;
-	mov	dx,3c8h 		;DX --> DAC Write Index register
-;
-public	SRDLoop_AGX
-SRDLoop_AGX:
-;
-;First, set the index:
-;
-	mov	al,bl			;get index into AL
-	out	dx,al			;
-	inc	dl			;DX --> DAC Data register
-;
-;Now for the RED:
-;
-	mov	al,[esi+(ebx*4)+2]	;get RED value into AL
-	shr	al,2			;get it into low 6 bits
-	out	dx,al			;
-;
-;Now for the GREEN:
-;
-	mov	al,[esi+ebx*4+1]	;get GREEN value into AL
-	shr	al,2			;get it into low 6 bits
-	out	dx,al			;
-;
-;Lastly, the BLUE:
-;
-	mov	al,[esi+ebx*4]		;get BLUE value into AL
-	shr	al,2			;get it into low 6 bits
-	out	dx,al			;
-	dec	dl			;DX --> DAC Write Index register
-	inc	bx			;bump to next colour index
-	dec	cx			;perform a loop maneuver
-	jnz	SRDLoop_AGX		;
 ;
 SRDExit:
 	ret

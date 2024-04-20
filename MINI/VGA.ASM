@@ -124,8 +124,8 @@ cBegin
 	jne	PEGetMemSize		;yes! no need to do it again
 ;
 ;We call down to the XGA MiniVDD which has already identified us as an XGA
-;or AGX chipset.  This call will return the chipset ID (XGA1_ID, XGA2_ID,
-;or AGX_ID), the base I/O register, and the pixmap base address:
+;chipset.  This call will return the chipset ID (XGA1_ID or XGA2_ID),
+;the base I/O register, and the pixmap base address:
 ;
 	mov	eax,VDD_REGISTER_DISPLAY_DRIVER_INFO
 	movzx	ebx,OurVMHandle 	;(needed for call)
@@ -138,9 +138,9 @@ cBegin
 ;At this point:
 ;	EAX contains the physical address of the aperture.
 ;	DX contains the I/O base address (21x0).
-;	DI contains the chipset ID (XGA1_ID, XGA2_ID, or AGX_ID).
+;	DI contains the chipset ID (XGA1_ID or XGA2_ID).
 ;
-	mov	wChipId,di		;DI contains the XGA or AGX model
+	mov	wChipId,di		;DI contains the XGA model
 	mov	XGAIOBaseAddr,dx	;
 	mov	XGAPixmapBaseAddr,eax	;
 ;
@@ -276,35 +276,6 @@ PESetupHiResMode:
 	inc	dx			;DX --> CRTC index register base (21xA)
 	mov	CRTCRegisterBase,dx	;save this for later use
 ;
-public	PECheckForAGX14
-PECheckForAGX14:
-;
-;We need to differentiate between the AGX 14 and the AGX 15/16 since the
-;AGX 14 cannot do hardware BLT's at 16 BPP.
-;
-	mov	AGXChipID,0		;make sure this is 0 for the XGA
-	cmp	wChipId,AGX_ID		;running on an IIT AGX?
-	jne	PESetMode		;nope, skip the following
-	mov	AGXChipID,14h		;assume we're on an AGX 14
-	mov	dx,216ah		;DX --> AGX indexed registers
-	mov	al,6ch			;
-	out	dx,al			;
-	inc	dl			;DX --> AGX data register
-	in	al,dx			;get the contents of AGX register 6CH
-	mov	ah,al			;save the original contents
-	xor	al,02h			;invert the value of bit 1
-					;(this is a safe thing to do on AGX 15)
-	out	dx,al			;set the new value into the register
-	jmp	@F			;delay for a bit
-@@:	in	al,dx			;get the value from register 6CH
-	nop
-	xor	al,02h			;set value back to what it was
-	xchg	al,ah			;(get original value back in AL)
-	out	dx,al			;set original value back to hardware
-	cmp	al,ah			;did we get back what we wrote?
-	jne	PESetMode		;nope, we must be on an AGX 14 or lower
-	mov	AGXChipID,15h		;yes, mark that we can do hardware StrBLT
-;
 public	PESetMode
 PESetMode:
 ;
@@ -318,7 +289,7 @@ PESetMode:
 public	PEHookUpWithVDD
 PEHookUpWithVDD:
 ;
-;The XGA/AGX driver uses a private flag called WindowsEnabledFlag to tell
+;The XGA driver uses a private flag called WindowsEnabledFlag to tell
 ;our drawing routines that we're either in Windows (WindowsEnabledFlag == 0)
 ;or in a full-screen DOS box (WindowsEnabledFlag == 1).  The VDD must know
 ;about this flag so it can automatically set it when we're going to full-screen
@@ -369,34 +340,7 @@ PELocateOffScreenMemory:
 ;At this point:
 ;	EAX contains amount of video memory used by visible screen + VDD.
 ;
-	cmp	wChipId,AGX_ID		;running on an AGX?
-	jne	@F			;nope, skip the following
-	add	eax, 0FFFFh
-	and	eax, 0FFFF0000h		; make offscreen memory 64K boundry
-	mov	CursorStartAddr, eax	; 1st 64K offscr memory for cursor
-	push	eax			; calculate cursor address using formula
-	mov	ebx, eax		; CurAddr = (linear addr/800h) XOR DFh
-	shr	ebx, 11			; CurAddr[7:0] --> 216A:6E
-	xor	bx, 0DFh		; CurAddr[9:8] --> 216A:6F[1:0]
-	mov	dx, XGAIOBaseAddr
-	add	dx, 0ah			; 21xA
-	mov	al, 6eh
-	out	dx, al
-	inc	dx
-	mov	al, bl
-	out	dx, al
-	shr	bx, 8
-	and	bx, 3
-	dec	dx
-	mov	al, 6fh
-	out	dx, al
-	inc	dx
-	in	al, dx
-	or	al, bl
-	out	dx, al
-	pop	eax
-	add	eax, 10000h		;second 64K is our real offscreen memory
-@@:	push	eax			;save memory used for now
+	push	eax			;save memory used for now
 	mov	OffScreenStartAddr,eax	;save this for our BLTer routines
 	mov	dx,ScreenSelector	;
 	mov	word ptr OffScreenStartAddr+4,dx
@@ -448,7 +392,7 @@ PESetupXGACoprocessor:
 	mov	eax,XGAPixmapBaseAddr	;this is XGA's idea of start of VRAM
 	mov	es:[di].PixmapBasePointer,eax
 	mov	ax,wScreenWidthBytes	;get pitch of screen as PixMap's width
-	cmp	wChipId,AGX_ID		;running on an AGX?
+	cmp	wChipId,XGA2_ID		;running on an XGA/2?
 	jne	@F			;nope, continue
 	cmp	wBpp,16 		;running at 16 BPP?
 	jne	@F			;nope, continue
@@ -459,7 +403,7 @@ PESetupXGACoprocessor:
 	dec	ax			;XGA needs this
 	mov	es:[di].PixmapHeight,ax ;
 	mov	es:[di].PixmapFormat,3	;3 is the code for 8 BPP pixmap format
-	cmp	wChipId,AGX_ID		;running on an AGX?
+	cmp	wChipId,XGA2_ID		;running on an XGA/2?
 	jne	@F			;nope, skip the following
 	cmp	wBpp,16 		;running 16 BPP?
 	jne	@F			;nope, we're correctly set for 8 BPP
@@ -471,7 +415,7 @@ PESetupXGACoprocessor:
 	mov	es:[di].PixmapBasePointer,esi
 					;this is start of off-screen VRAM
 	mov	ax,wScreenWidthBytes	;get pitch of screen as PixMap's width
-	cmp	wChipId,AGX_ID		;running on an AGX?
+	cmp	wChipId,XGA2_ID		;running on an XGA/2?
 	jne	@F			;nope, continue
 	cmp	wBpp,16 		;running at 16 BPP?
 	jne	@F			;nope, continue
@@ -482,7 +426,7 @@ PESetupXGACoprocessor:
 	dec	ax			;XGA needs this
 	mov	es:[di].PixmapHeight,ax ;
 	mov	es:[di].PixmapFormat,3	;3 is the code for 8 BPP pixmap format
-	cmp	wChipId,AGX_ID		;running on an AGX?
+	cmp	wChipId,XGA2_ID		;running on an XGA/2?
 	jne	@F			;nope, skip the following
 	cmp	wBpp,16 		;running 16 BPP?
 	jne	@F			;nope, we're correctly set for 8 BPP
@@ -507,7 +451,7 @@ PESetupXGACoprocessor:
 	mov	es:[di].CarryChainMask,0ffh
 	mov	es:[di].PixelBitMask,0ffh
 	mov	ColorFormatMask,0ffh	;set mask to 8 bits for BLTer stuff
-	cmp	wChipId,AGX_ID		;running on an AGX?
+	cmp	wChipId,XGA2_ID		;running on an XGA/2?
 	jne	@F			;nope, skip the following
 	cmp	wBpp,16 		;running 16 BPP?
 	jne	@F			;nope, we're correctly set for 8 BPP
@@ -557,9 +501,12 @@ cBegin
 ;	1024x768 with 8 BPP (non-interlaced)
 ;	1280x1024 with 8 BPP
 ;
-;The IIT AGX can run in the following modes in addition to those above:
+;The XGA-2 can run in the following modes in addition to those above:
 ;
 ;	800x600 with 16 BPP
+;
+;With 2 meg of VRAM, the XGA-2 can also do:
+;
 ;	1024x768 with 16 BPP
 ;
 	mov	ax,wResolution
@@ -586,11 +533,7 @@ FM640x480:
 	jne	FM640x480x16		;nope, go try for 16 BPP
 	mov	wScreenWidthBytes,640	;
 	mov	wMaxWidth,640		;
-	cmp	wChipId,AGX_ID		;running on an IIT AGX?
-	jne	@F			;nope, pitch is setup OK
-	mov	wScreenWidthBytes,1024	;yes, AGX must have power of 2 pitch
-	mov	wMaxWidth,1024		;
-@@:	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
+	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
 	jmp	FMExit			;we support it!
 ;
 public	FM640x480x16
@@ -602,11 +545,7 @@ FM640x480x16:
 	mov	bx,111h 		;set to mode 111H (16 BPP)
 	mov	wScreenWidthBytes,1280	;
 	mov	wMaxWidth,1280		;
-	cmp	wChipId,AGX_ID		;running on an IIT AGX?
-	jne	@F			;nope, pitch is setup OK
-	mov	wScreenWidthBytes,2048	;yes, AGX must have power of 2 pitch
-	mov	wMaxWidth,2048		;
-@@:	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
+	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
 	jmp	FMExit			;return Mode 111H for 640x480x16
 ;
 public	FM800x600
@@ -730,8 +669,8 @@ VMDetectXGA:
 	jne	VMGetMemorySize 	;yes! no need to do it again
 ;
 ;We call down to the XGA MiniVDD which may have already identified us as an XGA
-;or AGX chipset.  This call will return the chipset ID (XGA1_ID, XGA2_ID,
-;or AGX_ID), the base I/O register, and the pixmap base address:
+;chipset.  This call will return the chipset ID (XGA1_ID or XGA2_ID),
+;the base I/O register, and the pixmap base address:
 ;
 	mov	eax,VDD_REGISTER_DISPLAY_DRIVER_INFO
 	movzx	ebx,OurVMHandle 	;(needed for call)
@@ -743,14 +682,12 @@ VMDetectXGA:
 	je	VMExit			;nope, MiniVDD didn't handle the call!
 ;
 ;At this point:
-;	DI contains the chipset ID (XGA1_ID, XGA2_ID, or AGX_ID).
+;	DI contains the chipset ID (XGA1_ID or XGA2_ID).
 ;
 	cmp	di,XGA1_ID		;is it the XGA/1?
 	je	@F			;yes, go save it
 	cmp	di,XGA2_ID		;is it the XGA/2?
 	je	@F			;yes, go save it
-	cmp	di,AGX_ID		;is it the AGX?
-	jne	VMExit			;nope, return "Maybe"
 @@:	mov	wChipId,di		;DI contains the XGA model (XGA/1 or 2)
 ;
 public	VMGetMemorySize

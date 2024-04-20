@@ -29,8 +29,8 @@ XGABLTerRegs		struc
 	CurrentVirtualAddr	dd	?
 	Reserved_1a		db	?
 	AuxStatus		db	?
+	Reserved_1b		db	?
 	Reserved_1c		db	?
-	Reserved_1d		db	?
 	StateALen		db	?
 	StateBLen		db	?
 	Reserved_2		dw	?
