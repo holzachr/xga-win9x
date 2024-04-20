@@ -108,11 +108,7 @@ cBegin
 	cmp	al,1		;is a hardware cursor defined?
 	jne	@F		;nope, don't turn off the hardware cursor
 	lfs	di,XGARegs	;FS:DI --> XGA Coprocessor registers
-	cmp     wChipId,XGA2_ID ;running on an XGA-2?
-	jne     @F                              ;nope, don't use optimized polling
-	MakeHardwareNotBusyXga2 fs,di
-@@:	MakeHardwareNotBusy     fs,di
-
+	MakeHardwareNotBusy	fs,di
 	mov	dx,CRTCRegisterBase
 	mov	ax,36h		;a zero written to reg 36H will do it
 	out	dx,ax		;

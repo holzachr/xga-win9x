@@ -685,9 +685,11 @@ VMDetectXGA:
 ;	DI contains the chipset ID (XGA1_ID or XGA2_ID).
 ;
 	cmp	di,XGA1_ID		;is it the XGA/1?
-	je	@F			;yes, go save it
+	je	@F				;yes, go save it
 	cmp	di,XGA2_ID		;is it the XGA/2?
-	je	@F			;yes, go save it
+	je	@F				;yes, go save it
+	cmp	di,AGX_ID		;is it the AGX?
+	jne	VMExit			;nope, return "Maybe"
 @@:	mov	wChipId,di		;DI contains the XGA model (XGA/1 or 2)
 ;
 public	VMGetMemorySize
