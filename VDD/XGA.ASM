@@ -1116,7 +1116,7 @@ Mode800x600x16x72	label	word
 	dw	0150h, 0050h, 8210h, 0011h, 6312h, 0013h, 6314h, 0015h
 	dw	8216h, 0017h, 6a18h, 0019h, 791ah, 001bh, 201ch, 021eh
 	dw	6c20h, 0221h, 5722h, 0223h, 5724h, 0225h, 6c26h, 0227h
-	dw	5728h, 0229h, 5a2ah, 0ff2ch, 0ff2dh, 0154h, 0040h, 0041h
+	dw	5728h, 0229h, 5a2ah, 0ff2ch, 0ff2dh, 0036h, 0040h, 0041h
 	dw	0042h, 0c843h, 0044h, 0154h, 0070h, 0451h, 5d58h, 8054h
 	dw	0750h, 0055h, 0060h, 0061h, 0062h, 0063h, 0ff64h
 	dw	0032h, 0035h, 0038h, 0039h, 003ah, 0ff3bh, 0ff3ch, 0ff3dh
@@ -1545,10 +1545,11 @@ BeginProc VESAFunc1, DOSVM
 ;
 ;If we're running on an XGA/1, we can't do 800x600:
 ;
-	cmp	cl,03h			;trying to run 800x600?
-	jne	VF1CheckMemory		;nope, we're OK so far
-	cmp	ChipID,XGA1_ID		;running on an XGA/1?
-	jne	VF1CheckMemory		;nope, we're OK so far
+;TODO XGA1	cmp	cl,03h			;trying to run 800x600?
+;TODO XGA1	jne	VF1CheckMemory		;nope, we're OK so far
+;TODO XGA1	cmp	ChipID,XGA1_ID		;running on an XGA/1?
+;TODO XGA1	jne	VF1CheckMemory		;nope, we're OK so far
+	jmp VF1CheckMemory	;TODO XGA1
 ;
 public	VF1ModeNotSupported
 VF1ModeNotSupported:
@@ -1707,8 +1708,6 @@ VF2CheckMemory:
 					;do we have at least 1 meg?
 	jb	VF2Failure		;nope, we can't support this mode
 	cmp	al,07h			;running 1280x1024x8?
-	je	VF2CheckFor2Megs	;yes, go make sure we have 2 megs of RAM
-	cmp	al,14h			;running 800x600x16?
 	je	VF2CheckFor2Megs	;yes, go make sure we have 2 megs of RAM
 	cmp	al,17h			;running 1024x768x16?
 	jne	VF2GetModeTable 	;nope, we can support this mode

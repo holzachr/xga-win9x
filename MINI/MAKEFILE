@@ -15,7 +15,7 @@ BUILD_TYPE=display
 !INCLUDE $(DDKROOT)\master.mk
 !endif
 
-DRVNAME = XGA
+DRVNAME = XGA2MB
 RESDIR  = ..\res
 
 L16EXE  = $(DRVNAME).drv        # Name of exe.

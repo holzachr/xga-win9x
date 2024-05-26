@@ -148,8 +148,8 @@ SCDispatch:
 	jne	SCCallDIBEngine ;yes, go call the DIB engine
 	cmp	wBpp,8		;running on an XGA/2 in 8 BPP mode?
 	je	SCDefineHardwareCursor
-	cmp	wBpp,16		;running on an XGA/2 in 16 BPP mode?
-	je	SCDefineHardwareCursor
+;	cmp	wBpp,16		;running on an XGA/2 in 16 BPP mode?
+;	je	SCDefineHardwareCursor
 				;yes, we can use the hardware cursor
 ;
 public	SCCallDIBEngine

@@ -22,7 +22,7 @@ BUILD_TYPE=display
 #
 ##########################################################################
 
-DEVICE   = XGA
+DEVICE   = XGA2MB
 DDB_NAME = XGA_DDB
 OBJS     = xga.obj
 AFLAGS   = -coff -DBLD_COFF -W2 -Zd -c -Cx -DMASM6 -Sg -DVGA -DVGA31 -DMINIVDD=1
