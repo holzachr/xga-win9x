@@ -550,8 +550,8 @@ FM640x480x16:
 ;
 public	FM800x600
 FM800x600:
-;	cmp	wChipId,XGA1_ID 	;running on an XGA/1?
-;	je	FMErrorExit		;yep, can't support it
+	cmp	wChipId,XGA1_ID 	;running on an XGA/1?
+	je	FMErrorExit		;yep, can't support it
 	mov	wScreenWidth,800	;setup variables for 800x600
 	mov	wScreenHeight,600	;
 	mov	wScreenWidthBytes,800	;
@@ -598,35 +598,9 @@ FM1024x768:
 ;
 public	FM1280x1024
 FM1280x1024:
-	cmp	wChipId,AGX_ID		;running on an AGX?
-	jne	FMErrorExit		;nope, can't support it
+;	cmp	wChipId,AGX_ID		;running on an AGX?
+;	jne	FMErrorExit		;nope, can't support it
 	mov	wScreenWidth,1280	;setup variables for 1280x1024x8
-;
-public	FM1280x1024x4
-FM1280x1024x4:
-	cmp	dx,4			;do they want 4 BPP?
-	jne	FM1280x960x8		;
-	cmp	dwVideoMemorySize,1024*1024
-	jb	FMErrorExit		;not enough memory to support it!
-	mov	wScreenHeight,1024	;
-	mov	bx,106h 		;set to VESA mode 106H
-	mov	wScreenWidthBytes,640	;
-	mov	wMaxWidth,640		;
-	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
-	jmp	FMExit			;and we're done!
-;
-public	FM1280x960x8
-FM1280x960x8:
-	cmp	dx,8			;do they want 8 BPP?
-	jne	FMErrorExit		;nope, we don't do anything else
-	cmp	dwVideoMemorySize,1024*1024*2
-	jb	FMErrorExit		;not enough memory to support it!
-	mov	wScreenHeight,960	;
-	mov	bx,107h 		;set to VESA mode 107H
-	mov	wScreenWidthBytes,2048	;
-	mov	wMaxWidth,2048		;
-	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
-	jmp	FMExit			;we support it!
 ;
 public	FMErrorExit
 FMErrorExit:

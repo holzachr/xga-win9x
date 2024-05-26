@@ -13,18 +13,7 @@ DefaultDestDir=11
 %String1%=Mfg
 
 [Mfg]
-%String2%=XGA,*PNP090C
 %String3%=XGA2,*PNP0911
-
-[XGA]
-CopyFiles=Driver.Copy
-AddReg=XGA.AddReg
-DelReg=Prev.DelReg
-LogConfig=VGA.LogConfig
-UpdateInis=XGA.Ini
-
-[XGA.PosDup]
-*PNP090C
 
 [XGA2]
 CopyFiles=Driver.Copy
@@ -39,25 +28,6 @@ UpdateInis=XGA.Ini
 [Driver.Copy]
 xga2mb.drv
 xga2mb.vxd
-
-[XGA.AddReg]
-HKR,,Ver,0,4.0
-HKR,,DevLoader,0,*vdd
-HKR,DEFAULT,Mode,0,"8,640,480"
-HKR,DEFAULT,drv,0,xga2mb.drv
-HKR,DEFAULT,vdd,0,"*vdd,*vflatd"
-HKR,DEFAULT,minivdd,0,xga2mb.vxd
-HKR,DEFAULT,RefreshRate,0,-1
-HKR,DEFAULT,ExtModeSwitch,0,0
-HKR,"MODES\4\640,480",drv,0,vga.drv
-HKR,"MODES\4\640,480",vdd,0,*vdd
-HKR,"MODES\4\800,600",,0,
-HKR,"MODES\4\1024,768",,0,
-HKR,"MODES\8\640,480",,0,
-HKR,"MODES\8\800,600",,0,
-HKR,"MODES\8\1024,768",,0,
-HKR,"MODES\16\640,480",,0,
-HKR,"MODES\16\800,600",,0,
 
 [XGA2.AddReg]
 HKR,,Ver,0,4.0
@@ -111,5 +81,4 @@ xga2mb.vxd=1
 [Strings]
 String0="Christian Holzapfel"
 String1="Christian Holzapfel"
-String2="IBM XGA-1 MCA"
 String3="IBM XGA-2 MCA"

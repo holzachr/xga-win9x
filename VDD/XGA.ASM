@@ -997,6 +997,7 @@ VESAModesTable		label	word
 	dw	103h			;800x600x8
 	dw	104h			;1024x768x4
 	dw	105h			;1024x768x8
+	dw	107h			;1280x1024x8
 	dw	111h			;640x480x16 (5:6:5)
 	dw	114h			;800x600x16 (5:6:5)
 	dw	117h			;1024x768x16 (5:6:5)
@@ -1545,11 +1546,10 @@ BeginProc VESAFunc1, DOSVM
 ;
 ;If we're running on an XGA/1, we can't do 800x600:
 ;
-;TODO XGA1	cmp	cl,03h			;trying to run 800x600?
-;TODO XGA1	jne	VF1CheckMemory		;nope, we're OK so far
-;TODO XGA1	cmp	ChipID,XGA1_ID		;running on an XGA/1?
-;TODO XGA1	jne	VF1CheckMemory		;nope, we're OK so far
-	jmp VF1CheckMemory	;TODO XGA1
+	cmp	cl,03h			;trying to run 800x600?
+	jne	VF1CheckMemory		;nope, we're OK so far
+	cmp	ChipID,XGA1_ID		;running on an XGA/1?
+	jne	VF1CheckMemory		;nope, we're OK so far
 ;
 public	VF1ModeNotSupported
 VF1ModeNotSupported:
@@ -1627,7 +1627,7 @@ VF1FillInScreenAttributes:
 ;Now, fill in the RGB information for the 16 BPP mode:
 ;
 	cmp	cl,11h			;running in 640x480x16 BPP mode?
-	jb	@F			;nope, no need to fill in RGB info TODO was jne. jb?
+	jb	@F			;nope, no need to fill in RGB info
 	mov	[eax].VRedMaskSize,5	;
 	mov	[eax].VRedFieldPosition,11
 	mov	[eax].VGreenMaskSize,6	;
