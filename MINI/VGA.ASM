@@ -602,6 +602,19 @@ FM1280x1024:
 ;	jne	FMErrorExit		;nope, can't support it
 	mov	wScreenWidth,1280	;setup variables for 1280x1024x8
 ;
+public	FM1280x960x8
+FM1280x960x8:
+	cmp	dx,8			;do they want 8 BPP?
+	jne	FMErrorExit		;nope, we don't do anything else
+	cmp	dwVideoMemorySize,1024*1024*2
+	jb	FMErrorExit		;not enough memory to support it!
+	mov	wScreenHeight,1024	;
+	mov	bx,107h 		;set to VESA mode 107H
+	mov	wScreenWidthBytes,2048	;
+	mov	wMaxWidth,2048		;
+	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
+	jmp	FMExit			;we support it!
+;
 public	FMErrorExit
 FMErrorExit:
 	xor	bx,bx
