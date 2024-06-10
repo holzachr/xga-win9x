@@ -610,8 +610,8 @@ FM1280x960x8:
 	jb	FMErrorExit		;not enough memory to support it!
 	mov	wScreenHeight,1024	;
 	mov	bx,107h 		;set to VESA mode 107H
-	mov	wScreenWidthBytes,2048	;
-	mov	wMaxWidth,2048		;
+	mov	wScreenWidthBytes,1280	;
+	mov	wMaxWidth,1280		;
 	or	DeviceFlags,BANKEDSCAN	;scans will cross banks
 	jmp	FMExit			;we support it!
 ;

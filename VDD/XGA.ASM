@@ -1026,7 +1026,7 @@ Mode103H  VESAModeEntry <OFFSET32 Mode800x600x8x60, XGA2ModeTableEntryLen, 8, 80
 Mode104H  VESAModeEntry <OFFSET32 Mode1024x768x4, ModeTableEntryLen, 4, 1024, 512, 768>
 Mode105H  VESAModeEntry <OFFSET32 Mode1024x768x8, ModeTableEntryLen, 8, 1024, 1024, 768>
 Mode106H  VESAModeEntry <>
-Mode107H  VESAModeEntry <OFFSET32 Mode1280x1024x8, XGA2ModeTableEntryLen, 8, 1280, 1280, 1024>
+Mode107H  VESAModeEntry <OFFSET32 Mode1280x1024x8x60, XGA2ModeTableEntryLen, 8, 1280, 1280, 1024>
 Mode108H  VESAModeEntry <>
 Mode109H  VESAModeEntry <>
 Mode10AH  VESAModeEntry <>
@@ -1167,13 +1167,29 @@ Mode1024x768x16x70	label	word
 	dw	0c750h, 0055h, 0060h, 0061h, 0062h, 0063h, 0ff64h
 	dw	0032h, 0035h, 0038h, 0039h, 003ah, 0ff3bh, 0ff3ch, 0ff3dh
 ;
-Mode1280x1024x8 	label	word
-	dw	0150h, 0050h, 0d110h, 0011h, 9f12h, 0013h, 9f14h, 0015h
-	dw	0d116h, 0017h, 0a718h, 0019h, 0cf1ah, 001bh, 001ch, 001eh
-	dw	4420h, 0421h, 0ff22h, 0323h, 0ff24h, 0325h, 4426h, 0427h
+;Pixel clock = 108.9 MHz
+;HT   = ((11h << 8) + 10h + 1) * 8 = 1712
+;HDE  = ((13h << 8) + 12h + 1) * 8 = 1280 
+;HBS  = ((15h << 8) + 14h + 1) * 8 = 1280
+;HBE  = ((17h << 8) + 16h + 1) * 8 = 1712
+;HSPS = ((19h << 8) + 18h + 1) * 8 = 1344
+;HSPE = ((1Bh << 8) + 1Ah + 1) * 8 = 1664
+;VT   = (21h << 8) + 20h + 1 = 1063
+;VDE  = (23h << 8) + 22h + 1 = 1024
+;VBS  = (25h << 8) + 24h + 1 = 1024
+;VBE  = (27h << 8) + 26h + 1 = 1063
+;VSS  = (29h << 8) + 28h + 1 = 1027
+;VSE  = 2Ah = 10
+;VLC  = (2Dh << 8) + 2Ch + 1 = 65536
+;LineRatekHz = PixelClock / HT  = 63.668 kHz
+;FrameRateHz = LineRatekHz / VT = 59.895 Hz
+Mode1280x1024x8x60 	label	word
+	dw	0150h, 0050h, 0d510h, 0011h, 9f12h, 0013h, 9f14h, 0015h
+	dw	0d516h, 0017h, 0a718h, 0019h, 0cf1ah, 001bh, 001ch, 001eh
+	dw	2620h, 0421h, 0ff22h, 0323h, 0ff24h, 0325h, 2626h, 0427h
 	dw	0228h, 0429h, 0a2ah, 0ff2ch, 0ff2dh, 0036h, 0040h, 0041h
-	dw	0042h, 0a043h, 0044h, 0154h, 0070h, 0351h, 9158h, 8154h
-	dw	4f50h, 0055h, 0060h, 0061h, 0062h, 0063h, 0ff64h
+	dw	0042h, 0a043h, 0044h, 0154h, 0070h, 0351h, 0ac58h, 8154h
+	dw	4750h, 0055h, 0060h, 0061h, 0062h, 0063h, 0ff64h
 	dw	0032h, 0035h, 0038h, 0039h, 003ah, 0ff3bh, 0ff3ch, 0ff3dh
 ;
 
