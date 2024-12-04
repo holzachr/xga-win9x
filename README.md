@@ -1,7 +1,7 @@
 # xga-win9x
 An alternative driver for the IBM XGA-2/Nth Double Edge video cards.
 This one features detection of more than 1 MB of VRAM and enables
-many funky high-color modes.
+funky high-color modes.
 
 ```
 SUPPORTED MODES:
