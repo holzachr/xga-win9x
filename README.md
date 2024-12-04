@@ -24,7 +24,7 @@ SUPPORTED MODES:
 
    1280x1024*  256      60
    ------------------------------
-               Requires 2 MB Card
+              *Requires 2 MB Card
 ```
 
 KNOWN ISSUES:
