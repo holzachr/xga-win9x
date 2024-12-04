@@ -1,6 +1,9 @@
 # xga-win9x
 An alternative driver for the IBM XGA-2/Nth Double Edge video cards.
-This one features detection of more than 1 MB of VRAM and enables
+
+Sorry, no XGA-1 or PS/2 Model 90 planar.
+
+This driver delivers detection of more than 1 MB of VRAM and enables
 funky high-color modes.
 
 ```
@@ -29,6 +32,7 @@ SUPPORTED MODES:
 
 KNOWN ISSUES:
 Blank Screen Under W95 in MS-DOS Mode:
+
 Create a DOSSTART.BAT in the C:\WINDOWS directory. It contains only one line:
 ```
 mode co80
